@@ -177,8 +177,10 @@ export default function Hero() {
           style={{
             width: "clamp(260px,38vw,460px)", height: "auto", objectFit: "contain",
             transform: "rotate(-15deg)", zIndex: 1,
-            mixBlendMode: "screen" as const,
-            filter: "drop-shadow(0 80px 120px rgba(57,255,20,0.3)) drop-shadow(0 0 50px rgba(57,255,20,0.15))",
+            filter: "drop-shadow(0 45px 65px rgba(0,0,0,0.55)) drop-shadow(0 18px 32px rgba(57,255,20,0.2)) contrast(1.08) saturate(1.08)",
+            transformStyle: "preserve-3d",
+            backfaceVisibility: "hidden",
+            willChange: "transform, filter",
           }}
         />
       </div>
