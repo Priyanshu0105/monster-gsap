@@ -158,8 +158,10 @@ export default function ScrollSection() {
             style={{
               width: "clamp(220px,32vw,420px)", height: "auto", objectFit: "contain",
               transform: "rotate(-18deg)", zIndex: 1,
-              mixBlendMode: "screen" as const,
-              filter: `drop-shadow(0 70px 110px ${f.glow}) drop-shadow(0 0 35px ${f.glow})`,
+              filter: `drop-shadow(0 42px 64px rgba(0,0,0,0.5)) drop-shadow(0 16px 28px ${f.glow}) contrast(1.07) saturate(1.06)`,
+              transformStyle: "preserve-3d",
+              backfaceVisibility: "hidden",
+              willChange: "transform, filter",
             }}
           />
         </div>
