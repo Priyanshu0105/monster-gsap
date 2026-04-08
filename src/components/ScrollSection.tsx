@@ -1,263 +1,566 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense, useMemo } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useGLTF, Environment, ContactShadows } from "@react-three/drei";
+import * as THREE from "three";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const flavors = [
   {
-    src:    "/cans/green.png",
-    name:   "CLASSIC GREEN",
-    tagline:"THE ORIGINAL BEAST",
-    copy:   "Born in 2002. Still untamed. The drink that built an empire — raw, unfiltered, relentless. This isn't a beverage. It's a manifesto in a can.",
-    stats:  [{ label: "CAFFEINE", val: "160MG" }, { label: "FLAVOR", val: "RAW" }, { label: "LEGACY", val: "20YRS" }],
-    bg:     "#0a0a0a",
-    glow:   "rgba(57,255,20,0.22)",
-    accent: "#39ff14",
-    number: "01",
-    badge:  "ORIGINAL",
+    model:   "/models/green_monster.glb",
+    name:    "CLASSIC GREEN",
+    tagline: "THE ORIGINAL BEAST",
+    copy:    "Born in 2002. Still untamed.",
+    detail:  "The drink that built an empire — raw, unfiltered, relentless.",
+    stats:   [{ label: "CAFFEINE", val: "160MG" }, { label: "FLAVOR", val: "RAW" }, { label: "LEGACY", val: "20YRS" }],
+    tags:    ["TAURINE", "B-VITAMINS", "L-CARNITINE"],
+    bg: "#040a04", glow: "rgba(57,255,20,0.3)", glowRgb: "57,255,20", accent: "#39ff14",
+    number: "01", badge: "ORIGINAL",
   },
   {
-    src:    "/cans/mango.png",
-    name:   "MANGO LOCO",
-    tagline:"TROPICAL MADNESS",
-    copy:   "When paradise goes feral. Sun-scorched mango meets Monster intensity. Dangerously smooth. Wildly addictive. Your new obsession has a name.",
-    stats:  [{ label: "CAFFEINE", val: "160MG" }, { label: "FLAVOR", val: "MANGO" }, { label: "VIBE", val: "FERAL" }],
-    bg:     "#100800",
-    glow:   "rgba(255,140,0,0.22)",
-    accent: "#ff8c00",
-    number: "02",
-    badge:  "TROPICAL",
+    model:   "/models/mango_monster.glb",
+    name:    "MANGO LOCO",
+    tagline: "TROPICAL MADNESS",
+    copy:    "When paradise goes feral.",
+    detail:  "Sun-scorched mango meets Monster intensity. Dangerously smooth.",
+    stats:   [{ label: "CAFFEINE", val: "160MG" }, { label: "FLAVOR", val: "MANGO" }, { label: "VIBE", val: "FERAL" }],
+    tags:    ["TROPICAL", "SMOOTH", "ADDICTIVE"],
+    bg: "#0a0500", glow: "rgba(255,140,0,0.3)", glowRgb: "255,140,0", accent: "#ff8c00",
+    number: "02", badge: "TROPICAL",
   },
   {
-    src:    "/cans/white.png",
-    name:   "ULTRA WHITE",
-    tagline:"ZERO CALORIES. ZERO LIMITS.",
-    copy:   "Ghost-light, hit-hard. Zero sugar, full send. The clean slate that still hits like a freight train. For those who want it all and leave nothing behind.",
-    stats:  [{ label: "CAFFEINE", val: "150MG" }, { label: "CALORIES", val: "ZERO" }, { label: "LIMITS", val: "NONE" }],
-    bg:     "#06060f",
-    glow:   "rgba(100,200,255,0.2)",
-    accent: "#64c8ff",
-    number: "03",
-    badge:  "ULTRA",
+    model:   "/models/white_monster.glb",
+    name:    "ULTRA WHITE",
+    tagline: "ZERO LIMITS",
+    copy:    "Ghost-light. Hit-hard.",
+    detail:  "Zero sugar, full send. The clean slate that still hits like freight.",
+    stats:   [{ label: "CAFFEINE", val: "150MG" }, { label: "CALORIES", val: "ZERO" }, { label: "LIMITS", val: "NONE" }],
+    tags:    ["ZERO SUGAR", "ULTRA", "CLEAN"],
+    bg: "#02040a", glow: "rgba(100,200,255,0.25)", glowRgb: "100,200,255", accent: "#64c8ff",
+    number: "03", badge: "ULTRA",
   },
   {
-    src:    "/cans/punch.png",
-    name:   "PIPELINE PUNCH",
-    tagline:"RIDE THE WAVE",
-    copy:   "Named after the most dangerous wave on Earth. Violet-sweet, electric-deep, absolutely reckless. Catch it or get crushed. There is no middle ground.",
-    stats:  [{ label: "CAFFEINE", val: "160MG" }, { label: "FLAVOR", val: "PUNCH" }, { label: "WAVE", val: "∞" }],
-    bg:     "#0a000f",
-    glow:   "rgba(180,0,255,0.2)",
-    accent: "#b400ff",
-    number: "04",
-    badge:  "PIPELINE",
+    model:   "/models/pipeline_monster.glb",
+    name:    "PIPELINE PUNCH",
+    tagline: "RIDE THE WAVE",
+    copy:    "Named after the deadliest wave.",
+    detail:  "Violet-sweet, electric-deep, absolutely reckless. No middle ground.",
+    stats:   [{ label: "CAFFEINE", val: "160MG" }, { label: "FLAVOR", val: "PUNCH" }, { label: "WAVE", val: "∞" }],
+    tags:    ["ELECTRIC", "DEEP", "RECKLESS"],
+    bg: "#06000a", glow: "rgba(180,0,255,0.25)", glowRgb: "180,0,255", accent: "#b400ff",
+    number: "04", badge: "PIPELINE",
   },
 ];
 
+flavors.forEach((f) => useGLTF.preload(f.model));
+
+/* ── Energy torus rings ─────────────────────────────────────────────────── */
+function EnergyRings({ accent }: { accent: string }) {
+  const group = useRef<THREE.Group>(null);
+  const color = new THREE.Color(accent);
+
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    const t = clock.getElapsedTime();
+    group.current.children.forEach((child, i) => {
+      const mesh = child as THREE.Mesh;
+      mesh.rotation.z = t * (i % 2 === 0 ? 0.18 : -0.12) + i;
+      mesh.rotation.x = Math.sin(t * 0.4 + i) * 0.15;
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.07 + Math.sin(t * 1.6 + i * 1.1) * 0.04;
+    });
+  });
+
+  return (
+    <group ref={group}>
+      {[1.55, 1.78, 2.05, 2.38].map((r, i) => (
+        <mesh key={i} rotation={[Math.PI / 2, 0, i * 0.4]}>
+          <torusGeometry args={[r, 0.003 + i * 0.0015, 3, 128]} />
+          <meshBasicMaterial color={color} transparent opacity={0.09} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/* ── Floating sparks ────────────────────────────────────────────────────── */
+function Sparks({ accent }: { accent: string }) {
+  const ref   = useRef<THREE.Points>(null);
+  const color = new THREE.Color(accent);
+  const COUNT = 70;
+
+  const pos = useMemo(() => {
+    const arr = new Float32Array(COUNT * 3);
+    for (let i = 0; i < COUNT; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 1.1 + Math.random() * 1.3;
+      arr[i*3]   = Math.cos(a) * r;
+      arr[i*3+1] = (Math.random() - 0.5) * 4;
+      arr[i*3+2] = Math.sin(a) * r;
+    }
+    return arr;
+  }, []);
+
+  const vel = useMemo(() => {
+    const arr = new Float32Array(COUNT * 3);
+    for (let i = 0; i < COUNT; i++) {
+      arr[i*3]   = (Math.random() - 0.5) * 0.007;
+      arr[i*3+1] = 0.005 + Math.random() * 0.01;
+      arr[i*3+2] = (Math.random() - 0.5) * 0.007;
+    }
+    return arr;
+  }, []);
+
+  useFrame(() => {
+    if (!ref.current) return;
+    const arr = ref.current.geometry.attributes.position.array as Float32Array;
+    for (let i = 0; i < COUNT; i++) {
+      arr[i*3]   += vel[i*3];
+      arr[i*3+1] += vel[i*3+1];
+      arr[i*3+2] += vel[i*3+2];
+      if (arr[i*3+1] > 2.4) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 1.1 + Math.random() * 1.1;
+        arr[i*3]   = Math.cos(a) * r;
+        arr[i*3+1] = -2.4;
+        arr[i*3+2] = Math.sin(a) * r;
+      }
+    }
+    ref.current.geometry.attributes.position.needsUpdate = true;
+  });
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[pos, 3]} />
+      </bufferGeometry>
+      <pointsMaterial color={color} size={0.025} transparent opacity={0.75} sizeAttenuation />
+    </points>
+  );
+}
+
+/* ── Can mesh ───────────────────────────────────────────────────────────── */
+function CanMesh({ modelPath, accentHex, groupRef }: {
+  modelPath: string;
+  accentHex: string;
+  groupRef: React.RefObject<THREE.Group | null>;
+}) {
+  const { scene } = useGLTF(modelPath);
+  const { gl }    = useThree();
+  const cloned    = useRef<THREE.Group>(scene.clone(true));
+
+  useEffect(() => { cloned.current = scene.clone(true); }, [scene]);
+
+  useEffect(() => {
+    gl.toneMapping         = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = 0.5;
+    const ec = new THREE.Color(accentHex);
+    cloned.current.traverse((c) => {
+      if (!(c as THREE.Mesh).isMesh) return;
+      const mats = Array.isArray((c as THREE.Mesh).material)
+        ? (c as THREE.Mesh).material as THREE.MeshStandardMaterial[]
+        : [(c as THREE.Mesh).material as THREE.MeshStandardMaterial];
+      mats.forEach((m) => {
+        if (!m) return;
+        m.metalness        = 0.92;
+        m.roughness        = 0.15;
+        m.envMapIntensity  = 4.0;
+        m.emissive         = ec;
+        m.emissiveIntensity = 0.05;
+        m.needsUpdate      = true;
+      });
+    });
+  }, [accentHex, gl]);
+
+  return (
+    <group ref={groupRef} rotation={[0.04, Math.PI * 1.5, 0]} position={[0, -0.5, 0]}>
+      <primitive object={cloned.current} />
+    </group>
+  );
+}
+
+/* ── Full scene ─────────────────────────────────────────────────────────── */
+function SceneContent({ modelPath, accentHex, scrollYRef }: {
+  modelPath: string;
+  accentHex: string;
+  scrollYRef: React.RefObject<number>;
+}) {
+  const groupRef  = useRef<THREE.Group | null>(null);
+  const scaleRef  = useRef(1);
+  const prevModel = useRef(modelPath);
+
+  useEffect(() => {
+    if (prevModel.current !== modelPath) {
+      prevModel.current = modelPath;
+      scaleRef.current  = 0.48;
+    }
+  }, [modelPath]);
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    groupRef.current.rotation.y = Math.PI * 1.5 + scrollYRef.current * Math.PI * 3;
+    scaleRef.current += (1 - scaleRef.current) * 0.09;
+    groupRef.current.scale.setScalar(scaleRef.current);
+  });
+
+  return (
+    <>
+      <ambientLight intensity={0.12} />
+      <directionalLight position={[-4, 5, 4]}  intensity={4.5} color="#fff5e8" />
+      <directionalLight position={[5, 1, 3]}   intensity={1.8} color="#e8f0ff" />
+      <spotLight        position={[3, 3, -6]}   intensity={14}  angle={0.12} penumbra={0.6} color="#ffffff" />
+      <directionalLight position={[0, 10, 2]}  intensity={2.5} color="#ffffff" />
+      <pointLight       position={[0, -5, 3]}  intensity={1.2} color="#ffffff" />
+      <pointLight       position={[-3, 0, 4]}  intensity={3.2} color={accentHex} />
+      <pointLight       position={[3, 0, 4]}   intensity={1.6} color={accentHex} />
+      <Environment preset="studio" />
+      <Suspense fallback={null}>
+        <EnergyRings accent={accentHex} />
+        <Sparks      accent={accentHex} />
+        <CanMesh key={modelPath} modelPath={modelPath} accentHex={accentHex} groupRef={groupRef} />
+        <ContactShadows position={[0, -3.5, 0]} opacity={0.5} scale={6} blur={6} far={7} color="#000000" />
+      </Suspense>
+    </>
+  );
+}
+
+/* ── Shockwave rings ────────────────────────────────────────────────────── */
+function ShockwaveRings({ accent, glowRgb }: { accent: string; glowRgb: string }) {
+  return (
+    <div style={{
+      position: "absolute", inset: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none", zIndex: 1,
+    }}>
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{
+          position: "absolute",
+          width:  `${300 + i * 100}px`,
+          height: `${300 + i * 100}px`,
+          borderRadius: "50%",
+          border: `1px solid rgba(${glowRgb},${0.22 - i * 0.06})`,
+          boxShadow: `0 0 ${14 + i * 8}px rgba(${glowRgb},${0.14 - i * 0.03}), inset 0 0 ${8 + i * 4}px rgba(${glowRgb},0.04)`,
+          animation: `swRing${i} ${2.6 + i * 0.7}s ease-in-out infinite`,
+          animationDelay: `${i * 0.45}s`,
+        }} />
+      ))}
+
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => (
+        <div key={`line-${i}`} style={{
+          position: "absolute",
+          width: "1px",
+          height: `${50 + (i % 3) * 18}px`,
+          background: `linear-gradient(to bottom, transparent, rgba(${glowRgb},${0.45 - (i % 3) * 0.1}), transparent)`,
+          transform: `rotate(${deg}deg) translateY(-${175 + (i % 2) * 25}px)`,
+          animation: `lineFlicker ${1.4 + i * 0.18}s ease-in-out infinite`,
+          animationDelay: `${i * 0.15}s`,
+          transformOrigin: "center bottom",
+        }} />
+      ))}
+
+      {["-60px,-60px", "60px,-60px", "-60px,60px", "60px,60px"].map((t, i) => {
+        const [x, y] = t.split(",");
+        return (
+          <div key={`spark-${i}`} style={{
+            position: "absolute",
+            width: "4px", height: "4px",
+            borderRadius: "50%",
+            background: accent,
+            boxShadow: `0 0 8px 3px rgba(${glowRgb},0.6)`,
+            transform: `translate(${x}, ${y})`,
+            animation: `sparkPulse ${0.9 + i * 0.2}s ease-in-out infinite`,
+            animationDelay: `${i * 0.22}s`,
+          }} />
+        );
+      })}
+
+      <style>{`
+        @keyframes swRing0   { 0%,100%{transform:scale(1);  opacity:0.7} 50%{transform:scale(1.05);opacity:1} }
+        @keyframes swRing1   { 0%,100%{transform:scale(1);  opacity:0.4} 50%{transform:scale(1.07);opacity:0.75} }
+        @keyframes swRing2   { 0%,100%{transform:scale(1);  opacity:0.2} 50%{transform:scale(1.09);opacity:0.45} }
+        @keyframes lineFlicker { 0%,100%{opacity:0.15} 50%{opacity:0.7} }
+        @keyframes sparkPulse  { 0%,100%{opacity:0.4;transform:scale(1) translate(var(--sx,0),var(--sy,0))} 50%{opacity:1;transform:scale(1.8) translate(var(--sx,0),var(--sy,0))} }
+      `}</style>
+    </div>
+  );
+}
+
+/* ── Main ───────────────────────────────────────────────────────────────── */
 export default function ScrollSection() {
   const sectionRef = useRef<HTMLElement>(null);
-  const canRef     = useRef<HTMLImageElement>(null);
   const glowRef    = useRef<HTMLDivElement>(null);
-  const [current, setCurrent] = useState(0);
+  const scrollYRef = useRef(0);
+  const [current,  setCurrent]  = useState(0);
   const [progress, setProgress] = useState(0);
+  const f = flavors[current];
 
   useEffect(() => {
     const section = sectionRef.current;
-    const can     = canRef.current;
-    if (!section || !can) return;
+    if (!section) return;
 
-    gsap.to(can, {
-      rotationY: 360, rotationZ: 10, ease: "none",
-      scrollTrigger: { trigger: section, start: "top top", end: "bottom bottom", scrub: 1.5,
-        onUpdate: (self) => setProgress(self.progress),
+    /*
+      FIX: The original code used `i * vh` pixel offsets which caused the
+      last flavor to have almost no scroll window.
+
+      The section is 400vh tall. We divide it into 4 equal 25% bands:
+        Flavor 0 → 0%  – 25%
+        Flavor 1 → 25% – 50%
+        Flavor 2 → 50% – 75%
+        Flavor 3 → 75% – 100%  ← Pipeline Punch was never reached before
+
+      We use a single onUpdate trigger that reads scroll progress and
+      maps it to the correct flavor index — no per-flavor triggers needed.
+      This is more robust and works regardless of screen height.
+    */
+    const mainTrigger = ScrollTrigger.create({
+      trigger:  section,
+      start:    "top top",
+      end:      "bottom bottom",
+      scrub:    1.2,
+      onUpdate: (self) => {
+        scrollYRef.current = self.progress;
+        setProgress(self.progress);
+
+        // Map 0–1 progress to 0–3 flavor index
+        // Each flavor occupies exactly 25% of the scroll range
+        const idx = Math.min(
+          flavors.length - 1,
+          Math.floor(self.progress * flavors.length)
+        );
+
+        setCurrent((prev) => {
+          if (prev === idx) return prev; // no re-render if same flavor
+          switchFlavor(idx);
+          return idx;
+        });
       },
     });
 
-    flavors.forEach((flavor, i) => {
-      ScrollTrigger.create({
-        trigger: section,
-        start:   `${i * 25}% top`,
-        end:     `${(i + 1) * 25}% top`,
-        onEnter:     () => updateFlavor(i),
-        onEnterBack: () => updateFlavor(i === 0 ? 0 : i - 1),
-      });
-    });
-
-    function updateFlavor(i: number) {
-      const f = flavors[i];
-      setCurrent(i);
-      if (canRef.current) canRef.current.src = f.src;
-      gsap.to("body", { backgroundColor: f.bg, duration: 0.9, ease: "power2.out" });
+    function switchFlavor(i: number) {
+      const fl = flavors[i];
+      gsap.to("body", { backgroundColor: fl.bg, duration: 2, ease: "power2.out" });
       gsap.to(glowRef.current, {
-        background: `radial-gradient(circle,${f.glow} 0%,transparent 65%)`, duration: 0.9,
+        background: `radial-gradient(circle,${fl.glow} 0%,transparent 60%)`,
+        duration: 0.8,
       });
-      gsap.fromTo(".flavor-text-el",
-        { y: 35, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6, stagger: 0.07, ease: "power3.out" }
+      gsap.fromTo(
+        ".ftxt",
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.05, ease: "power3.out", overwrite: "auto" }
       );
     }
 
-    return () => ScrollTrigger.getAll().forEach((t) => t.kill());
+    return () => {
+      mainTrigger.kill();
+    };
   }, []);
-
-  const f = flavors[current];
 
   return (
     <section ref={sectionRef} style={{ height: "400vh", position: "relative" }}>
       <div style={{
         position: "sticky", top: 0, height: "100vh",
-        display: "grid", gridTemplateColumns: "1fr 1fr",
-        alignItems: "center", overflow: "hidden",
-        padding: "0 5vw", gap: "4vw",
+        display: "grid",
+        gridTemplateColumns: "1fr minmax(280px,34vw) 1fr",
+        alignItems: "center",
+        overflow: "hidden",
       }}>
 
-        {/* glow */}
+        {/* Central glow */}
         <div ref={glowRef} style={{
-          position: "absolute", left: "15%", top: "50%", transform: "translate(-50%,-50%)",
-          width: "clamp(350px,55vw,700px)", height: "clamp(350px,55vw,700px)",
-          borderRadius: "50%", background: `radial-gradient(circle,${f.glow} 0%,transparent 65%)`,
-          pointerEvents: "none",
+          position: "absolute", left: "50%", top: "50%",
+          transform: "translate(-50%,-50%)",
+          width: "clamp(420px,68vw,820px)", height: "clamp(420px,68vw,820px)",
+          borderRadius: "50%",
+          background: `radial-gradient(circle,${f.glow} 0%,transparent 60%)`,
+          pointerEvents: "none", zIndex: 0,
         }} />
 
-        {/* scanlines */}
+        {/* Scanlines */}
         <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none",
-          background: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,0.01) 3px,rgba(255,255,255,0.01) 4px)",
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          background: "repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,0.006) 3px,rgba(255,255,255,0.006) 4px)",
         }} />
 
-        {/* progress bar top */}
+        {/* Progress bar */}
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, height: "2px",
-          background: "rgba(255,255,255,0.05)",
+          background: "rgba(255,255,255,0.04)", zIndex: 10,
         }}>
           <div style={{
             height: "100%", width: `${progress * 100}%`,
-            background: f.accent, boxShadow: `0 0 8px ${f.accent}`,
+            background: f.accent, boxShadow: `0 0 14px ${f.accent}`,
             transition: "background 0.5s",
           }} />
         </div>
 
-        {/* LEFT — can */}
+        {/* ══ LEFT ══ */}
         <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 1, perspective: "1400px", position: "relative",
+          zIndex: 2, padding: "0 2vw 0 5vw",
+          display: "flex", flexDirection: "column", justifyContent: "center",
         }}>
-          {/* orbit ring */}
-          <div style={{
-            position: "absolute", width: "clamp(260px,36vw,450px)", height: "clamp(260px,36vw,450px)",
-            borderRadius: "50%", border: `1px solid ${f.accent}15`, pointerEvents: "none",
-            transition: "border-color 0.5s",
-          }} />
-          <img
-            ref={canRef}
-            src={f.src}
-            alt={f.name}
-            style={{
-              width: "clamp(220px,32vw,420px)", height: "auto", objectFit: "contain",
-              transform: "rotate(-18deg)", zIndex: 1,
-              mixBlendMode: "screen" as const,
-              filter: `drop-shadow(0 70px 110px ${f.glow}) drop-shadow(0 0 35px ${f.glow})`,
-            }}
-          />
-        </div>
-
-        {/* RIGHT — editorial text */}
-        <div style={{ zIndex: 1, position: "relative" }}>
-
-          {/* ghost number */}
-          <div className="flavor-text-el" style={{
+          <div className="ftxt" style={{
             fontFamily: "Bebas Neue, sans-serif",
-            fontSize: "clamp(6rem,14vw,12rem)",
+            fontSize: "clamp(5rem,9vw,10rem)",
             lineHeight: 1, color: "transparent",
-            WebkitTextStroke: `1px ${f.accent}18`,
-            position: "absolute", top: "-3rem", right: "-1rem",
-            pointerEvents: "none", userSelect: "none",
+            WebkitTextStroke: `1px ${f.accent}25`,
+            marginBottom: "0.4rem", userSelect: "none",
           }}>
             {f.number}
           </div>
 
-          {/* badge */}
-          <div className="flavor-text-el" style={{
-            fontFamily: "Bebas Neue, sans-serif", fontSize: "0.58rem",
-            letterSpacing: "0.5em", color: f.accent,
-            border: `1px solid ${f.accent}40`, padding: "3px 10px", borderRadius: "2px",
-            display: "inline-block", marginBottom: "1rem",
-            boxShadow: `0 0 10px ${f.glow}`,
+          <div className="ftxt" style={{
+            fontFamily: "Bebas Neue, sans-serif", fontSize: "0.54rem",
+            letterSpacing: "0.55em", color: f.accent,
+            border: `1px solid ${f.accent}40`, padding: "3px 12px", borderRadius: "2px",
+            display: "inline-block", marginBottom: "1.2rem",
+            boxShadow: `0 0 14px rgba(${f.glowRgb},0.35)`,
+            width: "fit-content", transition: "all 0.5s",
           }}>
             {f.badge}
           </div>
 
-          {/* name */}
-          <h2 className="flavor-text-el" style={{
+          <h2 className="ftxt" style={{
             fontFamily: "Bebas Neue, sans-serif",
-            fontSize: "clamp(2.5rem,5.5vw,5.5rem)",
-            lineHeight: 0.9, letterSpacing: "0.04em",
-            color: f.accent, textShadow: `0 0 40px ${f.glow}`,
-            marginBottom: "0.5rem", transition: "color 0.5s",
+            fontSize: "clamp(2rem,4.2vw,4.5rem)",
+            lineHeight: 0.87, letterSpacing: "0.03em", color: "#fff",
+            marginBottom: "0.4rem",
           }}>
             {f.name}
           </h2>
 
-          <p className="flavor-text-el" style={{
-            fontFamily: "Bebas Neue, sans-serif", fontSize: "clamp(0.6rem,1.1vw,0.8rem)",
-            letterSpacing: "0.45em", color: "rgba(255,255,255,0.28)", marginBottom: "1.6rem",
+          <p className="ftxt" style={{
+            fontFamily: "Bebas Neue, sans-serif", fontSize: "clamp(0.54rem,0.85vw,0.7rem)",
+            letterSpacing: "0.55em", color: f.accent,
+            textShadow: `0 0 24px rgba(${f.glowRgb},0.7)`,
+            marginBottom: "1.8rem", transition: "color 0.5s",
           }}>
             {f.tagline}
           </p>
 
-          <div className="flavor-text-el" style={{
-            width: "50px", height: "1px",
+          <div className="ftxt" style={{
+            width: "36px", height: "1px",
             background: f.accent, boxShadow: `0 0 10px ${f.accent}`,
-            marginBottom: "1.6rem",
+            marginBottom: "1.4rem",
           }} />
 
-          <p className="flavor-text-el" style={{
-            fontFamily: "Bebas Neue, sans-serif", fontSize: "clamp(0.8rem,1.3vw,1rem)",
-            lineHeight: 1.85, letterSpacing: "0.06em",
-            color: "rgba(255,255,255,0.4)", maxWidth: "380px", marginBottom: "2.2rem",
+          <p className="ftxt" style={{
+            fontFamily: "Bebas Neue, sans-serif",
+            fontSize: "clamp(0.75rem,1.1vw,0.92rem)",
+            lineHeight: 1.9, letterSpacing: "0.06em",
+            color: "rgba(255,255,255,0.38)", marginBottom: "0.5rem", maxWidth: "300px",
           }}>
             {f.copy}
           </p>
+          <p className="ftxt" style={{
+            fontFamily: "Bebas Neue, sans-serif",
+            fontSize: "clamp(0.62rem,0.88vw,0.75rem)",
+            lineHeight: 1.85, letterSpacing: "0.06em",
+            color: "rgba(255,255,255,0.18)", maxWidth: "280px",
+          }}>
+            {f.detail}
+          </p>
+        </div>
 
-          {/* stats */}
-          <div className="flavor-text-el" style={{ display: "flex", gap: "0", border: `1px solid ${f.accent}18` }}>
+        {/* ══ CENTER — 3D can ══ */}
+        <div style={{
+          zIndex: 2, position: "relative",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          height: "100vh",
+        }}>
+          <ShockwaveRings accent={f.accent} glowRgb={f.glowRgb} />
+          <div style={{
+            width: "100%", height: "100%",
+            filter: `drop-shadow(0 0 50px rgba(${f.glowRgb},0.55)) drop-shadow(0 60px 100px rgba(${f.glowRgb},0.3))`,
+            transition: "filter 0.9s",
+          }}>
+            <Canvas
+              camera={{ position: [0, 0, 7.5], fov: 30 }}
+              gl={{ antialias: true, alpha: true }}
+              style={{ width: "100%", height: "100%", background: "transparent" }}
+            >
+              <SceneContent modelPath={f.model} accentHex={f.accent} scrollYRef={scrollYRef} />
+            </Canvas>
+          </div>
+        </div>
+
+        {/* ══ RIGHT ══ */}
+        <div style={{
+          zIndex: 2, padding: "0 5vw 0 2vw",
+          display: "flex", flexDirection: "column", justifyContent: "center",
+        }}>
+          {/* Stats */}
+          <div className="ftxt" style={{ marginBottom: "2.4rem" }}>
             {f.stats.map((s, si) => (
               <div key={s.label} style={{
-                padding: "0.8rem 1.2rem",
-                borderRight: si < f.stats.length - 1 ? `1px solid ${f.accent}18` : "none",
-                background: "rgba(0,0,0,0.3)",
+                display: "flex", alignItems: "baseline",
+                justifyContent: "space-between",
+                padding: "0.9rem 0",
+                borderBottom: `1px solid rgba(${f.glowRgb},0.1)`,
+                borderTop: si === 0 ? `1px solid rgba(${f.glowRgb},0.1)` : "none",
               }}>
-                <div style={{
-                  fontFamily: "Bebas Neue, sans-serif", fontSize: "clamp(1.2rem,2vw,1.8rem)",
-                  color: f.accent, textShadow: `0 0 15px ${f.glow}`, lineHeight: 1,
-                }}>
-                  {s.val}
-                </div>
-                <div style={{
-                  fontFamily: "Bebas Neue, sans-serif", fontSize: "0.55rem",
-                  letterSpacing: "0.35em", color: "rgba(255,255,255,0.22)", marginTop: "3px",
+                <span style={{
+                  fontFamily: "Bebas Neue, sans-serif", fontSize: "0.56rem",
+                  letterSpacing: "0.4em", color: "rgba(255,255,255,0.22)",
                 }}>
                   {s.label}
-                </div>
+                </span>
+                <span style={{
+                  fontFamily: "Bebas Neue, sans-serif",
+                  fontSize: "clamp(1.4rem,2.2vw,2.1rem)",
+                  color: f.accent, textShadow: `0 0 22px rgba(${f.glowRgb},0.55)`,
+                  lineHeight: 1, transition: "color 0.5s",
+                }}>
+                  {s.val}
+                </span>
               </div>
             ))}
           </div>
 
-          {/* dots */}
-          <div style={{ display: "flex", gap: "8px", marginTop: "2rem" }}>
+          {/* Tags */}
+          <div className="ftxt" style={{ display: "flex", flexDirection: "column", gap: "7px", marginBottom: "2.4rem" }}>
+            {f.tags.map((tag) => (
+              <div key={tag} style={{
+                fontFamily: "Bebas Neue, sans-serif", fontSize: "0.56rem",
+                letterSpacing: "0.38em", color: `rgba(${f.glowRgb},0.55)`,
+                padding: "5px 12px",
+                border: `1px solid rgba(${f.glowRgb},0.14)`,
+                borderRadius: "2px",
+                background: `rgba(${f.glowRgb},0.04)`,
+                width: "fit-content",
+              }}>
+                + {tag}
+              </div>
+            ))}
+          </div>
+
+          {/* Flavor nav dots */}
+          <div className="ftxt" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {flavors.map((fl, i) => (
-              <div key={i} style={{
-                width: i === current ? "32px" : "8px", height: "3px", borderRadius: "2px",
-                background: i === current ? fl.accent : "rgba(255,255,255,0.12)",
-                boxShadow:  i === current ? `0 0 8px ${fl.accent}` : "none",
-                transition: "all 0.4s ease",
-              }} />
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{
+                  width:      i === current ? "28px" : "5px",
+                  height:     "2px", borderRadius: "2px",
+                  background: i === current ? fl.accent : "rgba(255,255,255,0.08)",
+                  boxShadow:  i === current ? `0 0 8px ${fl.accent}` : "none",
+                  transition: "all 0.4s ease",
+                }} />
+                <span style={{
+                  fontFamily: "Bebas Neue, sans-serif", fontSize: "0.48rem",
+                  letterSpacing: "0.4em",
+                  color: i === current ? fl.accent : "rgba(255,255,255,0.1)",
+                  transition: "color 0.4s",
+                }}>
+                  {fl.badge}
+                </span>
+              </div>
             ))}
           </div>
         </div>
+
       </div>
     </section>
   );
