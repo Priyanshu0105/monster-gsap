@@ -71,7 +71,7 @@ export default function Cursor() {
           background:   "#39ff14",
           boxShadow:    "0 0 10px #39ff14, 0 0 20px #39ff14",
           pointerEvents: "none",
-          zIndex:       99999,
+          zIndex:       999999999,
           transform:    "translate(-50%, -50%)",
         }}
       />
@@ -89,7 +89,7 @@ export default function Cursor() {
           boxShadow:    "0 0 8px #39ff14, inset 0 0 8px rgba(57,255,20,0.15)",
           background:   "rgba(57,255,20,0.05)",  // ← subtle green fill
           pointerEvents: "none",
-          zIndex:       99998,
+          zIndex:       999999999,
           transform:    "translate(-50%, -50%)",
         }}
       />

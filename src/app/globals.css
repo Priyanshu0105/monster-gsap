@@ -256,7 +256,7 @@ body {
  position:fixed;
  inset:0;
 
- z-index:999999999;
+ z-index:99999;
 
  background:
  radial-gradient(circle at 50% 42%, rgba(57,255,20,0.06), transparent 60%),
