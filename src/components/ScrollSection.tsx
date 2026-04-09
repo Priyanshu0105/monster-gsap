@@ -166,12 +166,12 @@ function CanMesh({ modelPath, accentHex, groupRef }: {
         : [(c as THREE.Mesh).material as THREE.MeshStandardMaterial];
       mats.forEach((m) => {
         if (!m) return;
-        m.metalness        = 0.92;
-        m.roughness        = 0.15;
-        m.envMapIntensity  = 4.0;
-        m.emissive         = ec;
+        m.metalness         = 0.92;
+        m.roughness         = 0.15;
+        m.envMapIntensity   = 4.0;
+        m.emissive          = ec;
         m.emissiveIntensity = 0.05;
-        m.needsUpdate      = true;
+        m.needsUpdate       = true;
       });
     });
   }, [accentHex, gl]);
@@ -184,10 +184,11 @@ function CanMesh({ modelPath, accentHex, groupRef }: {
 }
 
 /* ── Full scene ─────────────────────────────────────────────────────────── */
-function SceneContent({ modelPath, accentHex, scrollYRef }: {
-  modelPath: string;
-  accentHex: string;
-  scrollYRef: React.RefObject<number>;
+function SceneContent({ modelPath, accentHex, scrollYRef, flavorIndex }: {
+  modelPath:   string;
+  accentHex:   string;
+  scrollYRef:  React.RefObject<number>;
+  flavorIndex: number;
 }) {
   const groupRef  = useRef<THREE.Group | null>(null);
   const scaleRef  = useRef(1);
@@ -196,13 +197,34 @@ function SceneContent({ modelPath, accentHex, scrollYRef }: {
   useEffect(() => {
     if (prevModel.current !== modelPath) {
       prevModel.current = modelPath;
-      scaleRef.current  = 0.48;
+      scaleRef.current  = 0.48; // pop-in scale animation on flavor change
     }
   }, [modelPath]);
 
   useFrame(() => {
     if (!groupRef.current) return;
-    groupRef.current.rotation.y = Math.PI * 1.5 + scrollYRef.current * Math.PI * 3;
+
+    /*
+      FIX: Previously used raw scrollYRef (0→1 for whole section), so:
+        Flavor 0 started at 0.00 → rotation offset = 0          ✓ logo facing
+        Flavor 1 started at 0.25 → rotation offset = 0.25×3π    ✗ wrong face
+        Flavor 2 started at 0.50 → rotation offset = 0.50×3π    ✗ wrong face
+        Flavor 3 started at 0.75 → rotation offset = 0.75×3π    ✗ wrong face
+
+      Fix: compute localProgress = progress within THIS flavor's 25% band.
+        Each flavor's band: [flavorIndex/4 … (flavorIndex+1)/4]
+        localProgress is always 0→1 regardless of where the band sits.
+        So every can starts from LOGO_Y (Math.PI*1.5) and rotates forward.
+    */
+    const bandStart     = flavorIndex / flavors.length;
+    const bandSize      = 1 / flavors.length;
+    const localProgress = Math.max(0, Math.min(1,
+      (scrollYRef.current - bandStart) / bandSize
+    ));
+
+    // Always starts from logo face, spins 1.5 full rotations through the band
+    groupRef.current.rotation.y = Math.PI * 1.5 + localProgress * Math.PI * 3;
+
     scaleRef.current += (1 - scaleRef.current) * 0.09;
     groupRef.current.scale.setScalar(scaleRef.current);
   });
@@ -279,9 +301,9 @@ function ShockwaveRings({ accent, glowRgb }: { accent: string; glowRgb: string }
       })}
 
       <style>{`
-        @keyframes swRing0   { 0%,100%{transform:scale(1);  opacity:0.7} 50%{transform:scale(1.05);opacity:1} }
-        @keyframes swRing1   { 0%,100%{transform:scale(1);  opacity:0.4} 50%{transform:scale(1.07);opacity:0.75} }
-        @keyframes swRing2   { 0%,100%{transform:scale(1);  opacity:0.2} 50%{transform:scale(1.09);opacity:0.45} }
+        @keyframes swRing0    { 0%,100%{transform:scale(1);  opacity:0.7}  50%{transform:scale(1.05);opacity:1}    }
+        @keyframes swRing1    { 0%,100%{transform:scale(1);  opacity:0.4}  50%{transform:scale(1.07);opacity:0.75} }
+        @keyframes swRing2    { 0%,100%{transform:scale(1);  opacity:0.2}  50%{transform:scale(1.09);opacity:0.45} }
         @keyframes lineFlicker { 0%,100%{opacity:0.15} 50%{opacity:0.7} }
         @keyframes sparkPulse  { 0%,100%{opacity:0.4;transform:scale(1) translate(var(--sx,0),var(--sy,0))} 50%{opacity:1;transform:scale(1.8) translate(var(--sx,0),var(--sy,0))} }
       `}</style>
@@ -302,38 +324,22 @@ export default function ScrollSection() {
     const section = sectionRef.current;
     if (!section) return;
 
-    /*
-      FIX: The original code used `i * vh` pixel offsets which caused the
-      last flavor to have almost no scroll window.
-
-      The section is 400vh tall. We divide it into 4 equal 25% bands:
-        Flavor 0 → 0%  – 25%
-        Flavor 1 → 25% – 50%
-        Flavor 2 → 50% – 75%
-        Flavor 3 → 75% – 100%  ← Pipeline Punch was never reached before
-
-      We use a single onUpdate trigger that reads scroll progress and
-      maps it to the correct flavor index — no per-flavor triggers needed.
-      This is more robust and works regardless of screen height.
-    */
     const mainTrigger = ScrollTrigger.create({
-      trigger:  section,
-      start:    "top top",
-      end:      "bottom bottom",
-      scrub:    1.2,
+      trigger: section,
+      start:   "top top",
+      end:     "bottom bottom",
+      scrub:   1.2,
       onUpdate: (self) => {
         scrollYRef.current = self.progress;
         setProgress(self.progress);
 
-        // Map 0–1 progress to 0–3 flavor index
-        // Each flavor occupies exactly 25% of the scroll range
         const idx = Math.min(
           flavors.length - 1,
           Math.floor(self.progress * flavors.length)
         );
 
         setCurrent((prev) => {
-          if (prev === idx) return prev; // no re-render if same flavor
+          if (prev === idx) return prev;
           switchFlavor(idx);
           return idx;
         });
@@ -342,7 +348,7 @@ export default function ScrollSection() {
 
     function switchFlavor(i: number) {
       const fl = flavors[i];
-      gsap.to("body", { backgroundColor: fl.bg, duration: 2, ease: "power2.out" });
+      gsap.to("body", { backgroundColor: fl.bg, duration: 0.8, ease: "power2.out" });
       gsap.to(glowRef.current, {
         background: `radial-gradient(circle,${fl.glow} 0%,transparent 60%)`,
         duration: 0.8,
@@ -354,9 +360,7 @@ export default function ScrollSection() {
       );
     }
 
-    return () => {
-      mainTrigger.kill();
-    };
+    return () => { mainTrigger.kill(); };
   }, []);
 
   return (
@@ -482,7 +486,12 @@ export default function ScrollSection() {
               gl={{ antialias: true, alpha: true }}
               style={{ width: "100%", height: "100%", background: "transparent" }}
             >
-              <SceneContent modelPath={f.model} accentHex={f.accent} scrollYRef={scrollYRef} />
+              <SceneContent
+                modelPath={f.model}
+                accentHex={f.accent}
+                scrollYRef={scrollYRef}
+                flavorIndex={current}
+              />
             </Canvas>
           </div>
         </div>
@@ -537,7 +546,7 @@ export default function ScrollSection() {
             ))}
           </div>
 
-          {/* Flavor nav dots */}
+          {/* Flavor nav */}
           <div className="ftxt" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {flavors.map((fl, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
