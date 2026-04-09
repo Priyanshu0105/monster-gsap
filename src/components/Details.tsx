@@ -79,13 +79,14 @@ export default function Details() {
             fontSize: "clamp(3rem,9vw,7.5rem)", letterSpacing: "0.03em",
             lineHeight: 0.9, color: "#fff",
           }}>
-            WHAT&apos;S<br />
+            WHAT'S<br />
             <span style={{ color: "#39ff14", textShadow: "0 0 40px rgba(57,255,20,0.5)" }}>INSIDE</span>
           </h2>
         </div>
       </div>
 
-      <div style={{
+      <div className="details-grid"
+      style={{
         display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
         gap: "1px", width: "100%", maxWidth: "1100px",
         border: "1px solid rgba(57,255,20,0.1)",
