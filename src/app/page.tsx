@@ -14,14 +14,14 @@ export default function Home(){
     <>
     
       <Loader/>
-
+      <Cursor/>
       <main
       style={{
         visibility:"visible"
       }}
       >
 
-        <Cursor/>
+
 
         <Hero/>
         <Analytics/>
