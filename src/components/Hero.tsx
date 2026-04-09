@@ -22,7 +22,7 @@ function CanModel({
         mats.forEach((m) => {
           const mat = m as THREE.MeshStandardMaterial;
           if (!mat) return;
-          mat.metalness       = 0.90;  // ← more metallic
+          mat.metalness       = 0.95;  // ← more metallic
           mat.roughness       = 0.20;  // ← smoother
           mat.envMapIntensity = 3.5;   // ← more reflection
           mat.needsUpdate     = true;
@@ -36,7 +36,7 @@ function CanModel({
   return (
     <group
       ref={meshRef}
-      rotation={[0.04, Math.PI * 1.5, 0]}
+      rotation={[0.04, Math.PI * 1.5, 0]} // ← initial rotation
       position={[0, -0.5, 0]}   // ← center mein
       scale={[1, 1, 1]}
     >
@@ -52,14 +52,15 @@ function MouseRotator({
   meshRef: React.RefObject<THREE.Group | null>;
   mouseRef: React.RefObject<{ nx: number; ny: number }>;
 }) {
-  const BASE_Y = Math.PI * 1.5;
-  const BASE_Z = -0.2;
+  const BASE_Y =  4.5; // ← slight initial tilt for better 3D effect
+  const BASE_X = 0.05;
+  const BASE_Z = -0.15;
 
   useFrame(() => {
     if (!meshRef.current) return;
     const { nx, ny } = mouseRef.current;
     meshRef.current.rotation.y += (BASE_Y + nx * 0.55 - meshRef.current.rotation.y) * 0.05;
-    meshRef.current.rotation.x += (ny * -0.2           - meshRef.current.rotation.x) * 0.05;
+    meshRef.current.rotation.x += (BASE_X + ny * 0.2           - meshRef.current.rotation.x) * 0.05;
     meshRef.current.rotation.z += (BASE_Z               - meshRef.current.rotation.z) * 0.08;
   });
 
@@ -288,7 +289,7 @@ export default function Hero() {
             <ambientLight intensity={0.15} color="#ffffff" />
 
             {/* KEY — main light */}
-            <directionalLight position={[-4, 5, 4]}  intensity={4.5}  color="#fff5e8" />
+            <directionalLight position={[-4, 5, 4]}  intensity={6.5}  color="#fff5e8" />
 
             {/* FILL */}
             <directionalLight position={[5, 1, 3]}   intensity={1.8}  color="#e8f0ff" />
