@@ -12,9 +12,9 @@ export default function Home(){
   return(
 
     <>
-    
+      <Cursor/>    
       <Loader/>
-      <Cursor/>
+
       <main
       style={{
         visibility:"visible"
