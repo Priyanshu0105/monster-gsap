@@ -7,19 +7,34 @@ import Details from "@/components/Details";
 import { Analytics } from "@vercel/analytics/next";
 import Loader from "@/components/Loader";
 
-export default function Home() {
-  return (
-    <>
-      <Loader />
+export default function Home(){
 
-      <main>
+  return(
+
+    <>
+    
+      <Loader/>
+
+      <main
+      style={{
+        visibility:"visible"
+      }}
+      >
+
         <Cursor/>
-        <Analytics />
-        <Hero />
-        <ScrollSection />
-        <History />
-        <Details />
+
+        <Hero/>
+        <Analytics/>
+        <ScrollSection/>
+
+        <History/>
+
+        <Details/>
+
       </main>
+
     </>
+
   );
+
 }
