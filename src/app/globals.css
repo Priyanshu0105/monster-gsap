@@ -52,3 +52,94 @@ body {
     padding: 1.2rem !important;
   }
 }
+/* ---------------- MOBILE FIX ---------------- */
+
+@media (max-width: 900px) {
+
+body {
+ overflow-x: hidden;
+}
+
+/* HERO */
+
+.hero-section {
+ grid-template-columns: 1fr !important;
+ padding: 4rem 1.5rem !important;
+ gap: 2rem;
+}
+
+.hero-line-1,
+.hero-line-2,
+.hero-line-3 {
+ font-size: 18vw !important;
+ line-height: 0.9;
+}
+
+/* SCROLL SECTION */
+
+.scroll-section {
+ height: 240vh !important;
+}
+
+.scroll-layout {
+ grid-template-columns: 1fr !important;
+}
+
+/* TIMELINE */
+
+.timeline-line {
+ display: none !important;
+}
+
+.timeline-card {
+ width: 100% !important;
+ margin: 0 auto !important;
+}
+
+/* DETAILS GRID */
+
+.details-grid {
+ grid-template-columns: 1fr !important;
+}
+
+/* DISABLE CUSTOM CURSOR ON MOBILE */
+
+body {
+ cursor: auto !important;
+}
+
+* {
+ cursor: auto !important;
+}
+
+}
+@media (max-width:900px){
+
+.hero-can{
+ display:none !important;
+}
+
+}
+/* MOBILE FIX — full can visible */
+
+@media (max-width:768px){
+
+.flavor-can-wrap{
+ height:80vh !important;
+ align-items:flex-end !important;
+}
+
+.flavor-canvas{
+ transform:translateY(-70px) scale(0.78);
+}
+
+}
+/* mobile shockwave fix */
+
+@media (max-width:768px){
+
+.shockwave-wrap{
+ transform:translateY(60px) scale(0.8);
+}
+
+}
