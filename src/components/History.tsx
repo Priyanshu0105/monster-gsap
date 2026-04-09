@@ -406,7 +406,9 @@ export default function History() {
         </div>
 
         {timeline.map((item, i) => (
-          <div key={item.year} style={{
+          <div key={item.year}
+            className="timeline-card"
+          style={{
             display:        "flex",
             justifyContent: item.side === "left" ? "flex-start" : "flex-end",
             marginBottom:   "4.5rem",

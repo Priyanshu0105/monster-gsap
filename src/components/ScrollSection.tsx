@@ -364,8 +364,11 @@ export default function ScrollSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} style={{ height: "400vh", position: "relative" }}>
-      <div style={{
+    <section ref={sectionRef}
+    className="scroll-section"
+
+    style={{ height: "400vh", position: "relative" }}>
+      <div  className="scroll-layout" style={{
         position: "sticky", top: 0, height: "100vh",
         display: "grid",
         gridTemplateColumns: "1fr minmax(280px,34vw) 1fr",
@@ -470,13 +473,17 @@ export default function ScrollSection() {
         </div>
 
         {/* ══ CENTER — 3D can ══ */}
-        <div style={{
+        <div 
+        className="flavor-can-wrap"
+        style={{
           zIndex: 2, position: "relative",
           display: "flex", alignItems: "center", justifyContent: "center",
           height: "100vh",
         }}>
-          <ShockwaveRings accent={f.accent} glowRgb={f.glowRgb} />
-          <div style={{
+          <div className="shockwave-wrap">
+            <ShockwaveRings accent={f.accent} glowRgb={f.glowRgb} />
+          </div>
+          <div className="flavor-canvas" style={{
             width: "100%", height: "100%",
             filter: `drop-shadow(0 0 50px rgba(${f.glowRgb},0.55)) drop-shadow(0 60px 100px rgba(${f.glowRgb},0.3))`,
             transition: "filter 0.9s",

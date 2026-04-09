@@ -127,7 +127,9 @@ export default function Hero() {
   ];
 
   return (
-    <section style={{
+    <section 
+    className="hero-section"
+    style={{
       minHeight:           "100vh",
       display:             "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -274,6 +276,7 @@ export default function Hero() {
 
         <div
           ref={canWrapperRef}
+            className="hero-can"
           style={{
             width:    "min(34vw, 380px)",
             height:   "88vh",
